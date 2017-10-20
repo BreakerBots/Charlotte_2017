@@ -139,6 +139,8 @@ public class Charlotte extends IterativeRobot {
 		switch (autoMode) {
 		case 1:  // drive forward
 			auto_forward(0,0.2,auto_center_distance);  // args are step, speed, and distance
+//			auto_floor_pickup_lower(1);
+//			auto_floor_pickup_eject(2);
 //			auto_place_gear(1);
 			break;
 			
@@ -270,5 +272,9 @@ public class Charlotte extends IterativeRobot {
 			}
 		}
 	}//auto_turn
+	
+	public void auto_lower_floor_pickup (int activeState) {
+		
+	}
 		
 }//Robot class
