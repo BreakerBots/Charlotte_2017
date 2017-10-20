@@ -65,7 +65,7 @@ public class Charlotte extends IterativeRobot {
 
 	/**
 	 * This function is run when the robot is first started up and should be used
-	 * for any initialization code.
+	 * for any initialization .
 	 */
 	// four talons for the 4 drive motors
 	CANTalon right1;
