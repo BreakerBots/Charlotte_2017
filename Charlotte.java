@@ -4,14 +4,15 @@ package org.usfirst.frc.team5104.robot;
 import com.ctre.CANTalon;
 
 import edu.wpi.first.wpilibj.ADXRS450_Gyro;
+import edu.wpi.first.wpilibj.CameraServer;
 import edu.wpi.first.wpilibj.Compressor;
-import edu.wpi.first.wpilibj.DoubleSolenoid;
+//import edu.wpi.first.wpilibj.DoubleSolenoid;
 import edu.wpi.first.wpilibj.IterativeRobot;
 import edu.wpi.first.wpilibj.Joystick;
 import edu.wpi.first.wpilibj.RobotDrive;
 import edu.wpi.first.wpilibj.SPI.Port;
 import edu.wpi.first.wpilibj.Timer;
-import edu.wpi.first.wpilibj.smartdashboard.SendableChooser;
+//import edu.wpi.first.wpilibj.smartdashboard.SendableChooser;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 
 /**
@@ -23,82 +24,77 @@ import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
  */
 public class Charlotte extends IterativeRobot {
 	// GearIntakeSystem
-	public static final double floor_pickup_speed_intake = 0.7;
-	public static final double floor_pickup_speed_ejecto = -0.8;
-	public static final int floor_pickup_position_raised = 0;
-	public static final int floor_pickup_position_ground = -3000;
-	public static final int floor_pickup_button_cancel = 0;
-	public static final int floor_pickup_button_engage = 1;
-	public static final int floor_pickup_button_ejecto = 2;
+	public static final double floor_pickup_speed_intake = -0.7;
+	public static final double floor_pickup_speed_ejecto = 0.8;
+	public static final double floor_pickup_raise_speed = -0.1;/*NEGATIVE RAISES THE FLOOR PICKUP*/ /*DO NOT REVERSE THESE VALUES!!!*/
+	public static final double floor_pickup_lower_speed =  0.2;/*POSITIVE LOWERS THE FLOOR PICKUP*/ /*SERIOUSLY, IT WON'T BE COOL!!!*/
+	public static final int floor_pickup_button_cancel = 2;
+	public static final int floor_pickup_button_engage = 4;
+	public static final int floor_pickup_button_ejecto = 4;
+
+	//Auto Measurements
+	// robot_length			= 28.5in
+	// offset_from_center	= 92.3in (to center?)
+	// distance_from_back_wall_to_airship_center = 
 	
-	//Autonomous Mode
-	public static final double auto_turn_speed = 0.35;
-	public static final int auto_center_distance = 26000;   // 30,000 made the robot travel 105 inches.  Approx length of robot is 28.5 inches.  
+	// Autonomous Mode
+	public static final double auto_turn_speed = 0.5;
+	public static final int auto_center_distance = 26000; // 30,000 made the robot travel 105 inches. Approx length of
+															// robot is 28.5 inches.
 															// Total distance to travel is 90 in
-	public static final int auto_right_distance_forward = 5000;
-	public static final int auto_right_angle = 30;
-	public static final int auto_right_distance_turned = 3000;
+	public static final int auto_right_distance_forward = (int)(89*30000/105);
+	public static final double auto_right_angle = -56.5;
+	public static final int auto_right_distance_turned = (int)(44*30000/105);
+
+	public static final int auto_left_distance_forward = (int)(84*30000/105);
+	public static final int auto_left_angle = 48;
+	public static final int auto_left_distance_turned = (int)(44*30000/105);
+
 	
-	// Constants for autonomous mode
-	public static final double gyro_kp = -0.03;    // to bring the robot back to 0 degree orientation
-	
+	public static final double gyro_kp = 0.03; // to bring the robot back to 0 degree orientation
+	public static final double kGyroCompensation = 9*(Math.PI/180);
 
 	// Winch
-	public static final int winch_axis = 4;  // need to determine button #
+	public static final int winch_axis = 3; // need to determine button #
 	
-	
-	RobotDrive drive;// set for 4 motors.
-	Joystick stick = new Joystick(0);// creates controller
-//	Joystick stickR = new Joystick(0);// creates controller
+	// Shift Gears
+	public static final int gearshift = 2;  // trigger to activate high gear
 
-//	AnalogGyro gyro = new AnalogGyro(1);
-	ADXRS450_Gyro gyro_spi = new ADXRS450_Gyro(Port.kOnboardCS0);  //not sure of the port
-	
+	Joystick stick = new Joystick(0);// creates controller
+	// Joystick stickR = new Joystick(0);// creates controller
+
+	Drive driver = new Drive(stick);
 	Winch winch = new Winch(stick);
 	FloorPickup floorPickup = new FloorPickup(stick);
+
+	CameraServer cam1;
 	
-
-	Compressor compressor;  
-	DoubleSolenoid solenoidGshift = new DoubleSolenoid(0,1);
-	DoubleSolenoid solenoidGwings = new DoubleSolenoid(2,3);
-	boolean button1reset = false, button2reset = false;
-
+	Compressor compressor;
 	/**
 	 * This function is run when the robot is first started up and should be used
 	 * for any initialization code.
 	 */
-	// four talons for the 4 drive motors
-	CANTalon right1;
-	CANTalon right2;
-	CANTalon left1;
-	CANTalon left2;
-	
 
-	//CANTalon gearanator;  // moves the gear-intake up and down
-	//CANTalon gearanotorLeft // the left spinner
-	//CANTalon gearanotorRight // the right spinner
-	
 	@Override
 	public void robotInit() {
-		
-		
-		left1 = new CANTalon(2);
-		right1 =new CANTalon(0);
-		right1.setFeedbackDevice(CANTalon.FeedbackDevice.QuadEncoder);
-		left2 = new CANTalon(3);
-		right2 = new CANTalon(1);
-		
+
+
 		compressor = new Compressor(50);
 		compressor.setClosedLoopControl(true);
 
-		
-		drive = new RobotDrive(left1, left2, right1, right2);  // four motors
-		//for more options for cantalon, go to WIFI (172.22.11.2) on roborio
-		
-		solenoidGshift.set(DoubleSolenoid.Value.kForward);  // kForward for low gear 
-		solenoidGwings.set(DoubleSolenoid.Value.kForward);   //kForward for closed wings
-		
 
+		driver.openWings();
+		driver.lowGear();
+		
+		cam1 = CameraServer.getInstance();
+		cam1.startAutomaticCapture();
+		
+		/*
+		 * solenoidGshift.set(DoubleSolenoid.Value.kForward); // kForward for low gear
+		 * solenoidGwings.set(DoubleSolenoid.Value.kForward); //kForward for closed
+		 * wings
+		 * 
+		 */
 
 	}
 
@@ -113,168 +109,141 @@ public class Charlotte extends IterativeRobot {
 	 * switch structure below with additional strings. If using the SendableChooser
 	 * make sure to add them to the chooser code above as well.
 	 */
-	
-	int autoMode=1;  // chooses the autonomous option WOOOAH!!! Changed to 1 b/c I wasn'tsure I was getting input from the drive station correctly :(
-	int autoStep;  //  each option has multiple steps
+
+	int autoMode;
+	int autoStep; // each option has multiple steps
+
 	public void autonomousInit() {
-		//autoMode = (int)SmartDashboard.getNumber("DB/Slider 0",0);    //Commented out temporarily
+		 autoMode = (int)SmartDashboard.getNumber("DB/Slider 0",0);
+		 
+		// temporarily
 		autoStep = 0;
 
-		right1.setEncPosition(0);
-		gyro_spi.reset();
+		driver.resetEncoder();
+		driver.resetGyro();
+		
 		System.out.println("Autonomous Initialization Complete");
-	}//autonomousInit
+	}// autonomousInit
 
-	//_______________________________________________________________
+	// _______________________________________________________________
 	/**
 	 * This function is called periodically during autonomous
 	 */
 	@Override
 	public void autonomousPeriodic() {
-//		drive.drive(SmartDashboard.getNumber("DB/Slider 0",0),
-//					SmartDashboard.getNumber("DB/Slider 1", 0));
-		System.out.printf("Encoder Position: %4d\t",right1.getEncPosition()-1);
-		System.out.printf("Gyro Angle: %4f\n", gyro_spi.getAngle());
+//		driver.drive(SmartDashboard.getNumber("DB/Slider 0", 0), SmartDashboard.getNumber("DB/Slider 1", 0));
+		
+		System.out.printf("Encoder Position: %4d\t", driver.getEncoderPosition() - 1);
+		System.out.printf("Gyro Angle: %4f\n", driver.getGyroAngle());
 
 		switch (autoMode) {
-		case 1:  // drive forward
-			auto_forward(0,0.2,auto_center_distance);  // args are step, speed, and distance
-//			auto_floor_pickup_lower(1);
-//			auto_floor_pickup_eject(2);
-//			auto_place_gear(1);
+		case 1: // drive forward
+			auto_forward(0, 0.5, auto_center_distance); // args are step, speed, and distance
+			// auto_floor_pickup_lower(1);
+			// auto_floor_pickup_eject(2);
+			// auto_place_gear(1);
 			break;
 			
-		case 2:  //drive from the right side
-			auto_forward	(0,0.2,9000);  //  step, speed, distance
-			auto_turn		(1,-32);       // step, angle, degrees
-			auto_forward	(2,0.2,5000);  // step, speed, distance
-//			auto_place_gear	(3);
+		case 2: // drive from the right side
+			auto_forward(0, /*0.7*/0.9, auto_right_distance_forward); // step, speed, distance
+			auto_turn	(1, auto_right_angle); // step, angle, degrees
+			auto_forward(2, /*0.5*/0.7, auto_right_distance_turned); // step, speed, distance
+			// auto_place_gear (3);
 			break;
 		case 3:
-			//Left side
-			auto_forward	(0,-0.2,-9000);
+			// Left side
+			auto_forward(0, 0.7, auto_left_distance_forward);
+			auto_turn	(1, auto_left_angle);
+			auto_forward(2, 0.5, auto_left_distance_turned);
 			break;
 		case 4:
-			//Baseline
+			// Baseline
+			auto_forward(0, 0.7, 90*30000/105);
 			break;
-			
-		default://case 0
+
+		default:// case 0
 			// do nothing
 			break;
 		}
-		
-		
-	}//autonomousPeriodic
-	
-//______________________________________________________________________________	
+
+	}// autonomousPeriodic
+
+	// ______________________________________________________________________________
 
 	/**
 	 * This function is called periodically during operator control
 	 */
 	@Override
 	public void teleopPeriodic() {
-		// 8/25
-		stick.getRawAxis(5);
-		
-	
-		// Pneumatics:
-		// button 1 for shifting gears  Gshift
-		// button 2 for wings           Gwings
-//		stick.getRawButton(0); use me for pneumatics stuff l8r
-//		disable both solenoids to start (?)
 
-		
-// probably don't need the while loop, since periodic is a loop		
-		while (isEnabled()) {
-			drive.arcadeDrive(stick);
-			System.out.printf("Encoder Position: %4d\t",right1.getEncPosition()-1);
-			System.out.printf("Gyro Angle: %4f\n", gyro_spi.getAngle());
-	
-			// toggles the gears from low to high and back again
-			if (stick.getRawButton(1) && !button1reset)  {
-				if (solenoidGshift.get() == DoubleSolenoid.Value.kForward) solenoidGshift.set(DoubleSolenoid.Value.kReverse);
-				else solenoidGshift.set(DoubleSolenoid.Value.kForward);
-				button1reset = true;
-			}
-			
-			if(!stick.getRawButton(1)) button1reset = false;
-			// end gear toggle
-			
-			// toggles the gear wings open and closed
-			if (stick.getRawButton(2) && !button2reset)  {
-				if (solenoidGwings.get() == DoubleSolenoid.Value.kForward) solenoidGwings.set(DoubleSolenoid.Value.kReverse);
-				else solenoidGwings.set(DoubleSolenoid.Value.kForward);
-				button2reset = true;
-				
-			}
-			if(!stick.getRawButton(2)) button2reset = false;
-			// end gear wing toggle
-		
-			winch.teleop();
-			floorPickup.teleop();
-			
-		}
-		
-		
+		stick.getRawAxis(5);
+
+		// Pneumatics:
+		// button 1 for shifting gears Gshift
+		// button 2 for wings Gwings
+
+		driver.teleop();
+		winch.teleop();
+		floorPickup.teleop();
+
 	}
-//_____________________________________________________________________________________
-	
-	//------------------AUTONOMOUS MODES---------------------//
+	// _____________________________________________________________________________________
+
+	// ------------------AUTONOMOUS MODES---------------------//
 	public void auto_forward(int activeStep, double speed, double distance) {
-		//Assumes encoder count to start at 0
-		
-		//If current autonomous action to account for periodic looping
+		// Assumes encoder count to start at 0
+
+		// If current autonomous action to account for periodic looping
 		if (autoStep == activeStep) {
 			System.out.printf("Running auto %d: Forward (%2f, %2f)\n", activeStep, speed, distance);
-			//Until a distance, drive
-			if (Math.abs(right1.getEncPosition()) < Math.abs(distance)) {
-				//If reversing
-				if (speed < 0)   {
-					//Turn to gyro angle
-					drive.drive(speed, gyro_kp*gyro_spi.getAngle());
-				//	Timer.delay(.04);  want to add to see if the jerkiness goes away
-				}
-				else
-					//Turn away from gyro angle
-					drive.drive(speed, -gyro_kp*gyro_spi.getAngle());
+			// Until a distance, drive
+			if (Math.abs(driver.right1.getEncPosition()) < Math.abs(distance)) {
+				// If reversing
+				if (speed < 0) {
+					// Turn to gyro angle
+					driver.curvedDrive(speed, gyro_kp * driver.getGyroAngle()+kGyroCompensation);
+					// Timer.delay(.04); want to add to see if the jerkiness goes away
+				} else
+					// Turn away from gyro angle
+					driver.curvedDrive(speed, -gyro_kp * driver.getGyroAngle()+kGyroCompensation);
 			} else {
 				System.out.println("Done");
-				//Reset encoder + gyro
-				right1.setEncPosition(0);
-				gyro_spi.reset();
-				
-				//Move to next autonomous step
+				// Reset encoder + gyro
+				driver.right1.setEncPosition(0);
+				driver.resetGyro();
+
+				// Move to next autonomous step
 				autoStep++;
 			}
 		}
 	}// end autoForward
-	
-	public void auto_turn (int activeStep, double angle) {
-		//If current autonomous action to account for periodic looping
+
+	public void auto_turn(int activeStep, double angle) {
+		// If current autonomous action to account for periodic looping
 		if (autoStep == activeStep) {
-			//Until an angle, turn
-			if (Math.abs(gyro_spi.getAngle()) < Math.abs(angle)) {
-				//If turning left
+			// Until an angle, turn
+			if (Math.abs(driver.getGyroAngle()) < Math.abs(angle)) {
+				// If turning left
 				if (angle < 0)
-					//turn left
-					drive.arcadeDrive(0, -auto_turn_speed);
+					// turn left
+					driver.arcadeDrive(0, -auto_turn_speed);
 				else
-					//turn right
-					drive.arcadeDrive(0, auto_turn_speed);
+					// turn right
+					driver.arcadeDrive(0, auto_turn_speed);
 			} else {
-				//Reset encoder + gyro
-				right1.setEncPosition(0);
+				// Reset encoder + gyro
 				Timer.delay(1);
-				SmartDashboard.putNumber("DB/Slider 2",right1.getEncPosition()+5);
-				gyro_spi.reset();
-				//Move to next autonomous step
+				SmartDashboard.putNumber("DB/Slider 2", driver.right1.getEncPosition() + 5);
+				driver.resetEncoder();
+				driver.resetGyro();
+				// Move to next autonomous step
 				autoStep++;
 			}
 		}
-	}//auto_turn
-	
-	public void auto_lower_floor_pickup (int activeState) {
-		
+	}// auto_turn
+
+	public void auto_lower_floor_pickup(int activeState) {
+
 	}
-		
-}//Robot class
+
+}// Robot class
